@@ -33,9 +33,20 @@ jobs:
     steps:
     - name: Check out the code
       uses: actions/checkout@v4
+    - name: Check for Dockerfile
+      id: dockerfile
+      run: |
+        if [ -f Dockerfile ]; then
+          echo "exists=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "exists=false" >> "$GITHUB_OUTPUT"
+          echo "No Dockerfile found; skipping Anchore image scan."
+        fi
     - name: Build the Docker image
+      if: steps.dockerfile.outputs.exists == 'true'
       run: docker build . --file Dockerfile --tag localbuild/testimage:latest
     - name: Run the Anchore Grype scan action
+      if: steps.dockerfile.outputs.exists == 'true'
       uses: anchore/scan-action@d5aa5b6cb9414b0c7771438046ff5bcfa2854ed7
       id: scan
       with:
@@ -43,6 +54,7 @@ jobs:
         fail-build: true
         severity-cutoff: critical
     - name: Upload vulnerability report
+      if: steps.dockerfile.outputs.exists == 'true'
       uses: github/codeql-action/upload-sarif@v3
       with:
         sarif_file: ${{ steps.scan.outputs.sarif }}
